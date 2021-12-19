@@ -1,5 +1,6 @@
 import sys
 import sqlalchemy
+from pprint import pprint
 from sqlalchemy import Table, Column, Integer, String
 from sqlalchemy.orm import declarative_base, relationship, scoped_session, sessionmaker
 from sqlalchemy.sql.expression import select
@@ -12,7 +13,7 @@ DB_USER="r00t"
 DB_PASSWD="r00t1234"
 DB_HOST="mido-dev02-devrds-db-back.cxh1e43zwtop.ap-northeast-1.rds.amazonaws.com"
 DB_PORT="3306"
-DB_DBNAME="sqlalchemy_tutorial" 
+DB_NAME="sqlalchemy_tutorial" 
 
 # モデル定義: https://docs.sqlalchemy.org/en/14/tutorial/metadata.html#defining-table-metadata-with-the-orm
 Base = declarative_base()
@@ -22,16 +23,15 @@ class UserRoles(Base):
     __tablename__ = "user_roles"
     id = Column(Integer, primary_key=True)
     # ForeignKeyには "テーブル名.カラム名" を指定
-    user_id = Column(Integer, ForeignKey("user.id"))
-    role_id = Column(Integer, ForeignKey("role.id"))
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    role_id = Column(Integer, ForeignKey("role.id"), nullable=False)
 
 class RolePermissions(Base):
     """roleとpermissionの中間テーブル"""
     __tablename__ = "role_permissions"
     id = Column(Integer, primary_key=True)
-    role_id = Column(Integer, ForeignKey("role.id"))
-    permission_id = Column(Integer, ForeignKey("permission.id"))
-
+    role_id = Column(Integer, ForeignKey("role.id"), nullable=False)
+    permission_id = Column(Integer, ForeignKey("permission.id"), nullable=False)
 
 class User(Base):
     """userテーブル
@@ -40,30 +40,30 @@ class User(Base):
     __tablename__ = "user"
 
     id = Column(Integer, primary_key=True)
-    username = Column(String(30))
+    name = Column(String(30), nullable=False, index=True, unique=True)
     password = Column(String(30))
     # 一対多のリレーション: https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-many
-    # relationship("リレーション先モデルクラス名" , back_poplulates="自テーブル名")
-    terminology_file = relationship("TerminologyFile", back_populates="user")
+    # relationship("リレーション先モデルクラス名" , back_poplulates="リレーション先の変数名")
+    terminology_files = relationship("TerminologyFile", back_populates="users")
     # 中間テーブルを利用した多対多のリレーション: https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#many-to-many
-    role = relationship("Role", secondary=UserRoles.__tablename__, back_populates="user")
+    roles = relationship("Role", secondary=UserRoles.__tablename__, back_populates="users")
 
     def __repr__(self):
-        return f'<User({self.username}, {self.password}, {self.terminology_file}, {self.role})>'
+        return f'<User({self.id}, {self.name}, {self.password}, {self.terminology_files}, {self.roles})>'
 
 class Role(Base):
     """roleテーブル"""
     __tablename__ = "role"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(200))
+    name = Column(String(200), nullable=False, index=True, unique=True)
 
     # リレーション
-    user = relationship("User", secondary=UserRoles.__tablename__, back_populates="role")
-    permission = relationship("Permission", secondary=RolePermissions.__tablename__, back_populates="role")
+    users = relationship("User", secondary=UserRoles.__tablename__, back_populates="roles")
+    permissions = relationship("Permission", secondary=RolePermissions.__tablename__, back_populates="roles")
 
     def __repr__(self):
-        return f'<Role({self.name}, {self.permission})>'
+        return f'<Role({self.name}, {self.permissions})>'
 
 
 class Permission(Base):
@@ -71,10 +71,10 @@ class Permission(Base):
     __tablename__ = "permission"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(200))
+    name = Column(String(200), nullable=False, index=True, unique=True)
 
     # リレーション
-    role = relationship("Role", secondary=RolePermissions.__tablename__, back_populates="permission")
+    roles = relationship("Role", secondary=RolePermissions.__tablename__, back_populates="permissions")
 
     def __repr__(self):
         return f'<Permission({self.name})>'
@@ -88,30 +88,48 @@ class TerminologyFile(Base):
     
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("user.id"))
+    filepath = Column(String(200))
 
     # リレーション
-    user = relationship("User", back_populates="terminology_file")
+    users = relationship("User", back_populates="terminology_files")
+
+    def __repr__(self):
+        return f'<TerminologyFile({self.id}, {self.user_id}, {self.filepath})>'
 
 def usage():
-    print("""
+    print(f"""
 [options]
---connection
---create-all
---drop-all
+  --connection
+  --create-all
+  --drop-all
+  --select-all
+  --select-user <USER_NAME>
+  --add-superuser
+  --add-user <USER_NAME>
+  --add-role <ROLE_NAME>
+  --add-permission <PERMISSION_NAME>
+  --add-file <USER_NAME> <FILE_PATH>
+  --add-file2 <USER_NAME> <FILE_PATH>
+  --assoc-user-role <USER_NAME> <ROLE_NAME>
+  --assoc-role-permission <USER_NAME> <ROLE_NAME>
+[command]
+  MYSQL_PWD={DB_PASSWD} mysql -u {DB_USER} -h {DB_HOST} {DB_NAME}
 """)
+    exit(1)
 
 def conn():
     engine = sqlalchemy.create_engine(
-        f'{DB_DIALECT}+{DB_DRIVER}://{DB_USER}:{DB_PASSWD}@{DB_HOST}/{DB_DBNAME}?charset=utf8mb4'
+        f'{DB_DIALECT}+{DB_DRIVER}://{DB_USER}:{DB_PASSWD}@{DB_HOST}/{DB_NAME}?charset=utf8mb4'
     )
     conn = engine.connect()
     result = conn.execute(sqlalchemy.text("select 'hello world'"))
     print(result.all())
     conn.close()
 
+
 if __name__ == "__main__":
     engine = sqlalchemy.create_engine(
-        f'{DB_DIALECT}+{DB_DRIVER}://{DB_USER}:{DB_PASSWD}@{DB_HOST}/{DB_DBNAME}?charset=utf8mb4'
+        f'{DB_DIALECT}+{DB_DRIVER}://{DB_USER}:{DB_PASSWD}@{DB_HOST}/{DB_NAME}?charset=utf8mb4'
     )
     # scoped_sessionで作成したセッションはシングルトンとなる
     # https://qiita.com/tosizo/items/86d3c60a4bb70eb1656e
@@ -119,6 +137,8 @@ if __name__ == "__main__":
         sessionmaker(autocommit=False, autoflush=False, bind=engine)
     )
 
+    if len(sys.argv) <= 1:
+        usage()
     if sys.argv[1] == "--conn":
         conn()
     elif sys.argv[1] == "--create-all":
@@ -129,58 +149,103 @@ if __name__ == "__main__":
         # テーブル削除
         # https://docs.sqlalchemy.org/en/14/core/metadata.html?highlight=create%20table#sqlalchemy.schema.MetaData.drop_all
         Base.metadata.drop_all(engine)
-    elif sys.argv[1] == "--insert":
-        with Session() as session:
-            p1 = Permission()
-            p1.name = "AdminTerminologyFullAccess"
-            session.add(p1)
-
-            p2 = Permission()
-            p2.name = "AdminTerminologyReadOnlyAccess"
-            session.add(p2)
-
-            p3 = Permission()
-            p3.name = "PowerUserAccess"
-            session.add(p3)
-
-            r1 = Role()
-            r1.name = "AdminRole"
-            r1.permission.append(p1)
-            r1.permission.append(p3)
-            session.add(r1)
-
-            r2 = Role()
-            r2.name = "NormalRole"
-            r2.permission.append(p2)
-            session.add(r2)
-
-            session.commit()
-        
-        with Session() as session:
-            u1 = User()
-            u1.username = "admin"
-            u1.password = "hogehoge"
-            u1.role.append(r1)
-            session.add(u1)
-
-            u2 = User()
-            u2.username = "ktamido"
-            u2.password = "fugafuga"
-            u2.role.append(r2)
-            session.add(u2)
-
-            session.commit()
-    elif sys.argv[1] == "--select":
+    elif sys.argv[1] == "--select-all":
         with Session() as session:
             # クエリ: https://docs.sqlalchemy.org/en/14/orm/session_basics.html#querying-2-0-style
             stmt = select(User)
             result = session.execute(stmt).scalars().all()
-            print(result)
-
-            stmt = select(User).filter_by(username="admin")
+            pprint(result)
+    elif sys.argv[1] == "--select-user":
+        username = sys.argv[2]
+        with Session() as session:
+            stmt = select(User).filter_by(name=username)
             result = session.execute(stmt).all()
-            print(result)
+            pprint(result)
+    elif sys.argv[1] == "--add-superuser":
+        with Session() as session:
+            p1 = Permission()
+            p1.name = "AdminTerminologyFullAccess"
 
+            p2 = Permission()
+            p2.name = "PowerUserAccess"
 
+            r1 = Role()
+            r1.name = "AdminRole"
+            r1.permissions.append(p1)
+            r1.permissions.append(p2)
+
+            u1 = User()
+            u1.name = "admin"
+            u1.password = "hogehoge"
+            u1.roles.append(r1)
+            session.add(u1)
+            session.commit()
+    elif sys.argv[1] == "--add-user":
+        username = sys.argv[2]
+        with Session() as session:
+            user = User()
+            user.name = username
+            user.password = "hogehogehogehoge"
+            session.add(user)
+            session.commit()
+    elif sys.argv[1] == "--add-role":
+        rolename = sys.argv[2]
+        with Session() as session:
+            role = Role()
+            role.name = rolename
+            session.add(role)
+            session.commit()
+    elif sys.argv[1] == "--add-permission":
+        permissionname = sys.argv[2]
+        with Session() as session:
+            permission = Permission()
+            permission.name = permissionname
+            session.add(permission)
+            session.commit()
+    elif sys.argv[1] == "--add-file":
+        username = sys.argv[2]
+        filename = sys.argv[3]
+        with Session() as session:
+            stmt = select(User).filter(User.name == username).order_by(User.id)
+            user: User = session.execute(stmt).first()[0]
+            terminology_file = TerminologyFile()
+            terminology_file.filepath = filename
+            uid = user.id
+            terminology_file.user_id = uid
+            session.add(terminology_file)
+            session.commit()
+    elif sys.argv[1] == "--add-file2":
+        username = sys.argv[2]
+        filename = sys.argv[3]
+        with Session() as session:
+            terminology_file = TerminologyFile()
+            terminology_file.filepath = filename
+            stmt = select(User).filter(User.name == username).order_by(User.id)
+            user: User = session.execute(stmt).first()[0]
+            user.terminology_files.append(terminology_file)
+            session.add(user)
+            session.commit()
+    elif sys.argv[1] == "--assoc-user-role":
+        user_name = sys.argv[2]
+        role_name = sys.argv[3]
+        with Session() as session:
+            stmt = select(User).where(User.name == user_name)
+            user: User = session.execute(stmt).first()[0]
+            stmt = select(Role).where(Role.name == role_name)
+            role: Role = session.execute(stmt).first()[0]
+            user.roles.append(role)
+            session.add(user)
+            session.commit()
+    elif sys.argv[1] == "--assoc-role-permission":
+        role_name = sys.argv[2]
+        permission_name = sys.argv[3]
+        with Session() as session:
+            stmt = select(Role).where(Role.name == role_name)
+            role: Role = session.execute(stmt).first()[0]
+            stmt = select(Permission).where(Permission.name == permission_name)
+            permission: Permission = session.execute(stmt).first()[0]
+            role.permissions.append(permission)
+            session.add(role)
+            session.commit()
     else:
         usage()
