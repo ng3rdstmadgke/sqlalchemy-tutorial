@@ -1,7 +1,7 @@
 import sys
 import sqlalchemy
 from pprint import pprint
-from sqlalchemy import Table, Column, Integer, String
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base, relationship, scoped_session, sessionmaker
 from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.schema import ForeignKey
@@ -159,7 +159,12 @@ if __name__ == "__main__":
         username = sys.argv[2]
         with Session() as session:
             stmt = select(User).filter_by(name=username)
-            result = session.execute(stmt).all()
+            result = session.execute(stmt).scalar_one()
+            pprint(result)
+    elif sys.argv[1] == "--get-user":
+        user_id = sys.argv[2]
+        with Session() as session:
+            result = session.get(User, int(user_id))
             pprint(result)
     elif sys.argv[1] == "--add-superuser":
         with Session() as session:
@@ -207,7 +212,7 @@ if __name__ == "__main__":
         filename = sys.argv[3]
         with Session() as session:
             stmt = select(User).filter(User.name == username).order_by(User.id)
-            user: User = session.execute(stmt).first()[0]
+            user: User = session.execute(stmt).scalar_one()
             terminology_file = TerminologyFile()
             terminology_file.filepath = filename
             uid = user.id
@@ -221,7 +226,7 @@ if __name__ == "__main__":
             terminology_file = TerminologyFile()
             terminology_file.filepath = filename
             stmt = select(User).filter(User.name == username).order_by(User.id)
-            user: User = session.execute(stmt).first()[0]
+            user: User = session.execute(stmt).first().scalar_one()
             user.terminology_files.append(terminology_file)
             session.add(user)
             session.commit()
@@ -247,5 +252,24 @@ if __name__ == "__main__":
             role.permissions.append(permission)
             session.add(role)
             session.commit()
+    elif sys.argv[1] == "--delete-user":
+        name = sys.argv[2]
+        with Session() as session:
+            stmt = select(User).filter(User.name == name).order_by(User.id)
+            user = session.execute(stmt).scalar_one()
+            session.delete(user)
+            session.commit()
+    elif sys.argv[1] == "--delete-role":
+        name = sys.argv[2]
+        with Session() as session:
+            pass
+    elif sys.argv[1] == "--delete-permission":
+        name = sys.argv[2]
+        with Session() as session:
+            pass
+    elif sys.argv[1] == "--delete-file":
+        name = sys.argv[2]
+        with Session() as session:
+            pass
     else:
         usage()
