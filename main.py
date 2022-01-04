@@ -43,8 +43,12 @@ class User(Base):
     name = Column(String(30), nullable=False, index=True, unique=True)
     password = Column(String(30))
     # 一対多のリレーション: https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-many
-    # relationship("リレーション先モデルクラス名" , back_poplulates="リレーション先の変数名")
-    terminology_files = relationship("TerminologyFile", back_populates="users")
+    # カスケード: https://docs.sqlalchemy.org/en/14/orm/cascades.html
+    terminology_files = relationship(
+        "TerminologyFile",           # リレーションモデル名
+        back_populates="users",      # リレーション先の変数名
+        cascade="all, delete-orphan" # ユーザーを削除したときに、関連するterminology_fileを削除する(default="save-update")
+    )
     # 中間テーブルを利用した多対多のリレーション: https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#many-to-many
     roles = relationship("Role", secondary=UserRoles.__tablename__, back_populates="users")
 
@@ -87,7 +91,7 @@ class TerminologyFile(Base):
     __tablename__ = "terminology_file"
     
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("user.id"))
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     filepath = Column(String(200))
 
     # リレーション
@@ -112,6 +116,8 @@ def usage():
   --add-file2 <USER_NAME> <FILE_PATH>
   --assoc-user-role <USER_NAME> <ROLE_NAME>
   --assoc-role-permission <USER_NAME> <ROLE_NAME>
+  --delete-user <USER_ID>
+  --delete-file <USER_ID> <FILE_ID>
 [command]
   MYSQL_PWD={DB_PASSWD} mysql -u {DB_USER} -h {DB_HOST} {DB_NAME}
 """)
@@ -253,10 +259,9 @@ if __name__ == "__main__":
             session.add(role)
             session.commit()
     elif sys.argv[1] == "--delete-user":
-        name = sys.argv[2]
+        user_id = sys.argv[2]
         with Session() as session:
-            stmt = select(User).filter(User.name == name).order_by(User.id)
-            user = session.execute(stmt).scalar_one()
+            user = session.query(User).filter(User.id == user_id).first()
             session.delete(user)
             session.commit()
     elif sys.argv[1] == "--delete-role":
@@ -268,8 +273,16 @@ if __name__ == "__main__":
         with Session() as session:
             pass
     elif sys.argv[1] == "--delete-file":
-        name = sys.argv[2]
+        user_id = sys.argv[2]
+        file_id = sys.argv[3]
         with Session() as session:
-            pass
+            terminology_file = session \
+                .query(TerminologyFile) \
+                .filter(
+                    TerminologyFile.user_id == user_id,
+                    TerminologyFile.id == file_id
+                ).first()
+            session.delete(terminology_file)
+            session.commit()
     else:
         usage()
