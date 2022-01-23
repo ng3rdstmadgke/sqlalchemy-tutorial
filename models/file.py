@@ -24,4 +24,4 @@ class File(Base):
     users = relationship("User", back_populates="files")
 
     def __repr__(self):
-        return f'<File({self.id}, {self.user_id}, {self.name})>'
+        return f"""<File(id={self.id}, user_id={self.user_id}, name={self.name}, content={self.content})>"""

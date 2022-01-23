@@ -30,4 +30,4 @@ class Role(Base):
     permissions = relationship("Permission", secondary="role_permissions", back_populates="roles")
 
     def __repr__(self):
-        return f'<Role({self.name}, {self.permissions})>'
+        return f"""<Role(id={self.id}, name={self.name}, description={self.description}, permissions={self.permissions})>"""

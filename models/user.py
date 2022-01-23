@@ -38,4 +38,12 @@ class User(Base):
     roles = relationship("Role", secondary="user_roles", back_populates="users")
 
     def __repr__(self):
-        return f'<User({self.id}, {self.name}, {self.is_superuser}, {self.is_active}, {self.files}, {self.roles})>'
+        return f"""<User(
+    id={self.id},
+    hashed_password={self.hashed_password},
+    username={self.username},
+    is_superuser={self.is_superuser},
+    is_active={self.is_active},
+    files={self.files},
+    roles={self.roles}
+)>"""

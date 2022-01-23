@@ -1,30 +1,29 @@
 import sys
 from db import base
 from db import db
+from pprint import pprint
 
 def usage():
     print(f"""
 [options]
-  --connection
   --create-all
   --drop-all
+  --init
   --select-all
-  --select-user <USER_NAME>
-  --add-superuser
-  --add-user <USER_NAME>
-  --add-role <ROLE_NAME>
-  --add-permission <PERMISSION_NAME>
-  --add-file <USER_NAME> <FILE_PATH>
-  --add-file2 <USER_NAME> <FILE_PATH>
-  --assoc-user-role <USER_NAME> <ROLE_NAME>
-  --assoc-role-permission <USER_NAME> <ROLE_NAME>
+  --select-user <USER_ID>
+  --add-file <USER_ID> <FILE_ID>
+  --assoc-user-role <USER_ID> <ROLE_ID>
+  --assoc-role-permission <ROLE_ID> <PERMISSION_ID>
   --delete-user <USER_ID>
+  --delete-role <ROLE_ID>
+  --delete-permission <PERMISSION_ID>
   --delete-file <USER_ID> <FILE_ID>
 """)
     exit(1)
 
 if __name__ == "__main__":
-    Session = db.get_db()
+    # ジェネレータから要素を取得
+    session = next(db.get_db())
     if len(sys.argv) <= 1:
         usage()
     if sys.argv[1] == "--create-all":
@@ -36,7 +35,6 @@ if __name__ == "__main__":
         # https://docs.sqlalchemy.org/en/14/core/metadata.html?highlight=create%20table#sqlalchemy.schema.MetaData.drop_all
         base.Base.metadata.drop_all(db.engine)
     elif sys.argv[1] == "--init":
-        session = next(db.get_db())
         admin_permission = base.Permission(
             name="Admin",
             description="admin permission",
@@ -112,137 +110,58 @@ if __name__ == "__main__":
         session.add(file_admin_user)
         session.add(normal_user)
         session.commit()
-
-
-
-#    elif sys.argv[1] == "--select-all":
-#        with Session() as session:
-#            # クエリ: https://docs.sqlalchemy.org/en/14/orm/session_basics.html#querying-2-0-style
-#            stmt = select(User)
-#            result = session.execute(stmt).scalars().all()
-#            pprint(result)
-#    elif sys.argv[1] == "--select-user":
-#        username = sys.argv[2]
-#        with Session() as session:
-#            stmt = select(User).filter_by(name=username)
-#            result = session.execute(stmt).scalar_one()
-#            pprint(result)
-#    elif sys.argv[1] == "--get-user":
-#        user_id = sys.argv[2]
-#        with Session() as session:
-#            result = session.get(User, int(user_id))
-#            pprint(result)
-#    elif sys.argv[1] == "--add-superuser":
-#        with Session() as session:
-#            p1 = Permission()
-#            p1.name = "AdminTerminologyFullAccess"
-#
-#            p2 = Permission()
-#            p2.name = "PowerUserAccess"
-#
-#            r1 = Role()
-#            r1.name = "AdminRole"
-#            r1.permissions.append(p1)
-#            r1.permissions.append(p2)
-#
-#            u1 = User()
-#            u1.name = "admin"
-#            u1.password = "hogehoge"
-#            u1.roles.append(r1)
-#            session.add(u1)
-#            session.commit()
-#    elif sys.argv[1] == "--add-user":
-#        username = sys.argv[2]
-#        with Session() as session:
-#            user = User()
-#            user.name = username
-#            user.password = "hogehogehogehoge"
-#            session.add(user)
-#            session.commit()
-#    elif sys.argv[1] == "--add-role":
-#        rolename = sys.argv[2]
-#        with Session() as session:
-#            role = Role()
-#            role.name = rolename
-#            session.add(role)
-#            session.commit()
-#    elif sys.argv[1] == "--add-permission":
-#        permissionname = sys.argv[2]
-#        with Session() as session:
-#            permission = Permission()
-#            permission.name = permissionname
-#            session.add(permission)
-#            session.commit()
-#    elif sys.argv[1] == "--add-file":
-#        username = sys.argv[2]
-#        filename = sys.argv[3]
-#        with Session() as session:
-#            stmt = select(User).filter(User.name == username).order_by(User.id)
-#            user: User = session.execute(stmt).scalar_one()
-#            terminology_file = TerminologyFile()
-#            terminology_file.filepath = filename
-#            uid = user.id
-#            terminology_file.user_id = uid
-#            session.add(terminology_file)
-#            session.commit()
-#    elif sys.argv[1] == "--add-file2":
-#        username = sys.argv[2]
-#        filename = sys.argv[3]
-#        with Session() as session:
-#            terminology_file = TerminologyFile()
-#            terminology_file.filepath = filename
-#            stmt = select(User).filter(User.name == username).order_by(User.id)
-#            user: User = session.execute(stmt).first().scalar_one()
-#            user.terminology_files.append(terminology_file)
-#            session.add(user)
-#            session.commit()
-#    elif sys.argv[1] == "--assoc-user-role":
-#        user_name = sys.argv[2]
-#        role_name = sys.argv[3]
-#        with Session() as session:
-#            stmt = select(User).where(User.name == user_name)
-#            user: User = session.execute(stmt).first()[0]
-#            stmt = select(Role).where(Role.name == role_name)
-#            role: Role = session.execute(stmt).first()[0]
-#            user.roles.append(role)
-#            session.add(user)
-#            session.commit()
-#    elif sys.argv[1] == "--assoc-role-permission":
-#        role_name = sys.argv[2]
-#        permission_name = sys.argv[3]
-#        with Session() as session:
-#            stmt = select(Role).where(Role.name == role_name)
-#            role: Role = session.execute(stmt).first()[0]
-#            stmt = select(Permission).where(Permission.name == permission_name)
-#            permission: Permission = session.execute(stmt).first()[0]
-#            role.permissions.append(permission)
-#            session.add(role)
-#            session.commit()
-#    elif sys.argv[1] == "--delete-user":
-#        user_id = sys.argv[2]
-#        with Session() as session:
-#            user = session.query(User).filter(User.id == user_id).first()
-#            session.delete(user)
-#            session.commit()
-#    elif sys.argv[1] == "--delete-role":
-#        name = sys.argv[2]
-#        with Session() as session:
-#            pass
-#    elif sys.argv[1] == "--delete-permission":
-#        name = sys.argv[2]
-#        with Session() as session:
-#            pass
-#    elif sys.argv[1] == "--delete-file":
-#        user_id = sys.argv[2]
-#        file_id = sys.argv[3]
-#        with Session() as session:
-#            terminology_file = session \
-#                .query(TerminologyFile) \
-#                .filter(
-#                    TerminologyFile.user_id == user_id,
-#                    TerminologyFile.id == file_id
-#                ).first()
-#            session.delete(terminology_file)
-#            session.commit()
-#    else:
-#        usage()
+    elif sys.argv[1] == "--select-all":
+        # クエリ: https://docs.sqlalchemy.org/en/14/orm/session_basics.html#querying-2-0-style
+        result = session.query(base.User).offset(0).limit(10).all()
+        pprint(result)
+    elif sys.argv[1] == "--select-user":
+        # クエリ: https://docs.sqlalchemy.org/en/14/orm/session_basics.html#querying-2-0-style
+        user_id = sys.argv[2]
+        result = session.query(base.User).filter(base.User.id == int(user_id)).first()
+        pprint(result)
+    elif sys.argv[1] == "--add-file":
+        user_id = sys.argv[2]
+        filename = sys.argv[3]
+        user = session.query(base.User).filter(base.User.id == int(user_id)).first()
+        user.files.append(base.File( name=filename, content=""))
+        session.add(user)
+        session.commit()
+    elif sys.argv[1] == "--assoc-user-role":
+        user_id = sys.argv[2]
+        role_id = sys.argv[3]
+        user = session.query(base.User).filter(base.User.id == int(user_id)).first()
+        role = session.query(base.Role).filter(base.Role.id == int(role_id)).first()
+        user.roles.append(role)
+        session.add(user)
+        session.commit()
+    elif sys.argv[1] == "--assoc-role-permission":
+        role_id = sys.argv[2]
+        permission_id = sys.argv[3]
+        role = session.query(base.Role).filter(base.Role.id == int(role_id)).first()
+        permission = session.query(base.Permission).filter(base.Permission.id == int(permission_id)).first()
+        role.permissions.append(permission)
+        session.add(role)
+        session.commit()
+    elif sys.argv[1] == "--delete-user":
+        user_id = sys.argv[2]
+        user = session.query(base.User).filter(base.User.id == user_id).first()
+        session.delete(user)
+        session.commit()
+    elif sys.argv[1] == "--delete-role":
+        role_id = sys.argv[2]
+        role = session.query(base.Role).filter(base.Role.id == role_id).first()
+        session.delete(role)
+        session.commit()
+    elif sys.argv[1] == "--delete-permission":
+        permission_id = sys.argv[2]
+        permission = session.query(base.Permission).filter(base.Permission.id == permission_id).first()
+        session.delete(permission)
+        session.commit()
+    elif sys.argv[1] == "--delete-file":
+        user_id = sys.argv[2]
+        file_id = sys.argv[3]
+        file_obj = session.query(base.File).filter(base.File.user_id == user_id, base.File.id == file_id).first()
+        session.delete(file_obj)
+        session.commit()
+    else:
+        usage()
