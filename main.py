@@ -34,82 +34,6 @@ if __name__ == "__main__":
         # テーブル削除
         # https://docs.sqlalchemy.org/en/14/core/metadata.html?highlight=create%20table#sqlalchemy.schema.MetaData.drop_all
         base.Base.metadata.drop_all(db.engine)
-    elif sys.argv[1] == "--init":
-        admin_permission = base.Permission(
-            name="Admin",
-            description="admin permission",
-        )
-
-        file_write_permission = base.Permission(
-            name="FileWrite",
-            description="file write permission",
-        )
-
-        file_read_permission = base.Permission(
-            name="FileRead",
-            description="file read permission",
-        )
-
-        admin_role = base.Role(
-            name="Admin",
-            description="admin",
-            permissions=[
-                admin_permission,
-                file_write_permission,
-                file_read_permission,
-            ]
-        )
-
-        file_admin_role = base.Role(
-            name="FileAdmin",
-            description="file admin",
-            permissions=[
-                file_write_permission,
-                file_read_permission,
-            ]
-        )
-
-        user_role = base.Role(
-            name="UserRole",
-            description="user",
-            permissions=[file_read_permission],
-        )
-
-        admin_user = base.User(
-            username = "admin",
-            hashed_password = "1234567890",
-            is_superuser = True,
-            is_active = True,
-            roles=[ admin_role ],
-            files=[]
-        )
-
-        file_admin_user = base.User(
-            username = "file_admin",
-            hashed_password = "1234567890",
-            is_superuser = True,
-            is_active = True,
-            roles=[ file_admin_role ],
-            files=[
-                base.File(name="file1", content="content1")
-            ]
-        )
-
-        normal_user = base.User(
-            username = "user",
-            hashed_password = "1234567890",
-            is_superuser = True,
-            is_active = True,
-            roles=[ user_role ],
-            files=[
-                base.File(name="file2", content="content2"),
-                base.File(name="file3", content="content3"),
-            ]
-        )
-        session.add(admin_user)
-        session.add(file_admin_user)
-        session.add(normal_user)
-        session.commit()
     elif sys.argv[1] == "--select-all":
         # クエリ: https://docs.sqlalchemy.org/en/14/orm/session_basics.html#querying-2-0-style
         result = session.query(base.User).offset(0).limit(10).all()
@@ -162,6 +86,56 @@ if __name__ == "__main__":
         file_id = sys.argv[3]
         file_obj = session.query(base.File).filter(base.File.user_id == user_id, base.File.id == file_id).first()
         session.delete(file_obj)
+        session.commit()
+    elif sys.argv[1] == "--init":
+        admin_permission = base.Permission(name="Admin", description="admin permission")
+        file_write_permission = base.Permission(name="FileWrite", description="file write permission")
+        file_read_permission = base.Permission(name="FileRead", description="file read permission")
+
+        admin_role = base.Role(
+            name="Admin",
+            description="admin",
+            permissions=[ admin_permission, file_write_permission, file_read_permission ]
+        )
+        file_admin_role = base.Role(
+            name="FileAdmin",
+            description="file admin",
+            permissions=[ file_write_permission, file_read_permission ]
+        )
+        user_role = base.Role(
+            name="UserRole",
+            description="user",
+            permissions=[file_read_permission],
+        )
+
+        admin_user = base.User(
+            username = "admin",
+            hashed_password = "1234567890",
+            is_superuser = True,
+            is_active = True,
+            roles=[ admin_role ],
+            files=[]
+        )
+        file_admin_user = base.User(
+            username = "file_admin",
+            hashed_password = "1234567890",
+            is_superuser = True,
+            is_active = True,
+            roles=[ file_admin_role ],
+            files=[ base.File(name="file1", content="content1") ]
+        )
+        normal_user = base.User(
+            username = "user",
+            hashed_password = "1234567890",
+            is_superuser = True,
+            is_active = True,
+            roles=[ user_role ],
+            files=[ base.File(name="file2", content="content2"), base.File(name="file3", content="content3") ]
+        )
+
+        session.add(admin_user)
+        session.add(file_admin_user)
+        session.add(normal_user)
         session.commit()
     else:
         usage()
