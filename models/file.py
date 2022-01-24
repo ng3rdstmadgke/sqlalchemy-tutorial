@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql.schema import ForeignKey
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
 from db.base_class import Base
 
@@ -16,7 +17,7 @@ class File(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(255), nullable=False)
-    content = Column(Text)
+    content = Column(MEDIUMTEXT)
     created = Column(DateTime, default=datetime.now, nullable=False)
     updated = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
